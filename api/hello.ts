@@ -192,8 +192,6 @@ export default async function handler(request: Request): Promise<Response> {
 
     <div class="url-container">
 
-        <div class="base-url">https://down.aibyai.cn/?url=</div>
-
         <input type="text" 
 
                id="videoUrl" 
@@ -458,7 +456,7 @@ export default async function handler(request: Request): Promise<Response> {
 
     return new Response(html, {
 
-        headers: { 
+        headers: {
 
             'Content-Type': 'text/html; charset=utf-8',
 
