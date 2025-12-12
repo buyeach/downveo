@@ -232,8 +232,6 @@ export default async function handler(request: Request): Promise<Response> {
 
         <p>3. 点击"解析下载"按钮</p>
 
-        <p>4. 获取视频信息和下载链接</p>
-
     </div>
 
     
