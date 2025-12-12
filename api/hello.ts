@@ -192,6 +192,8 @@ export default async function handler(request: Request): Promise<Response> {
 
     <div class="url-container">
 
+        <div class="base-url">https://down.aibyai.cn/?url=</div>
+
         <input type="text" 
 
                id="videoUrl" 
@@ -232,29 +234,15 @@ export default async function handler(request: Request): Promise<Response> {
 
         <p>3. 点击"解析下载"按钮</p>
 
+        <p>4. 获取视频信息和下载链接</p>
+
     </div>
 
     
 
-    <div id="loadingOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
-        <div style="background:white; padding:30px; border-radius:10px; text-align:center;">
-            <div style="font-size:24px; margin-bottom:15px;">⏳</div>
-            <div id="loadingText">正在解析视频链接...</div>
-        </div>
-    </div>
-
     <script>
 
-        function showLoading(text) {
-            document.getElementById('loadingText').textContent = text || '正在解析视频链接...';
-            document.getElementById('loadingOverlay').style.display = 'flex';
-        }
-
-        function hideLoading() {
-            document.getElementById('loadingOverlay').style.display = 'none';
-        }
-
-        async function processUrl() {
+        function processUrl() {
 
             const input = document.getElementById('videoUrl');
 
@@ -300,68 +288,11 @@ export default async function handler(request: Request): Promise<Response> {
 
             
 
-            // 显示加载状态
-            showLoading('正在解析视频链接...');
-            
-            try {
-                // 获取视频信息
-                const encodedUrl = encodeURIComponent(videoUrl);
-                const response = await fetch('/?url=' + encodedUrl + '&data=true');
-                const data = await response.json();
-                
-                if (data.type === 'video' && data.video_url) {
-                    // 直接下载视频
-                    hideLoading();
-                    
-                    // 直接跳转到视频链接，浏览器会自动下载
-                    window.location.href = data.video_url;
-                } else if (data.type === 'img' && data.image_url_list && data.image_url_list.length > 0) {
-                    // 图集类型，逐个下载图片
-                    hideLoading();
-                    const imgCount = data.image_url_list.length;
-                    if (confirm('检测到图集，共 ' + imgCount + ' 张图片，是否下载？')) {
-                        showLoading('正在下载图片...');
-                        
-                        for (let i = 0; i < data.image_url_list.length; i++) {
-                            try {
-                                showLoading('正在下载第 ' + (i + 1) + '/' + imgCount + ' 张图片...');
-                                const imgUrl = data.image_url_list[i];
-                                const imgResponse = await fetch(imgUrl);
-                                const blob = await imgResponse.blob();
-                                const downloadUrl = window.URL.createObjectURL(blob);
-                                
-                                const baseName = (data.desc || data.aweme_id || 'douyin_img').replace(/[\\\\/:*?"<>|]/g, '_').substring(0, 40);
-                                const fileName = baseName + '_' + (i + 1) + '.webp';
-                                
-                                const a = document.createElement('a');
-                                a.style.display = 'none';
-                                a.href = downloadUrl;
-                                a.download = fileName;
-                                document.body.appendChild(a);
-                                a.click();
-                                
-                                window.URL.revokeObjectURL(downloadUrl);
-                                document.body.removeChild(a);
-                                
-                                // 添加小延迟避免浏览器拦截
-                                await new Promise(resolve => setTimeout(resolve, 500));
-                            } catch (imgErr) {
-                                console.error('下载图片失败:', imgErr);
-                            }
-                        }
-                        
-                        hideLoading();
-                        alert('图片下载完成！共 ' + imgCount + ' 张');
-                    }
-                } else {
-                    hideLoading();
-                    alert('未能获取到有效的下载链接，请检查链接是否正确。');
-                }
-            } catch (err) {
-                hideLoading();
-                console.error('解析失败:', err);
-                alert('解析失败：' + err.message + '\\n请检查链接是否正确。');
-            }
+            // 编码URL并跳转
+
+            const encodedUrl = encodeURIComponent(videoUrl);
+
+            window.location.href = '/?url=' + encodedUrl + '&data=true';
 
         }
 
@@ -427,7 +358,7 @@ export default async function handler(request: Request): Promise<Response> {
 
     return new Response(html, {
 
-        headers: {
+        headers: { 
 
             'Content-Type': 'text/html; charset=utf-8',
 
