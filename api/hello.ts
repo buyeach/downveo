@@ -192,8 +192,6 @@ export default async function handler(request: Request): Promise<Response> {
 
     <div class="url-container">
 
-        <div class="base-url">https://down.aibyai.cn/?url=</div>
-
         <input type="text" 
 
                id="videoUrl" 
