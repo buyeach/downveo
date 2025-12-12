@@ -122,15 +122,6 @@ export default async function handler(request: Request): Promise<Response> {
         <p>4. 获取视频信息和下载链接</p>
     </div>
     
-    <div class="example">
-        <h3>✅ 支持平台：</h3>
-        <p>• 抖音 / TikTok</p>
-        <p>• YouTube</p>
-        <p>• Bilibili</p>
-        <p>• 微博视频</p>
-        <p>• 及其他常见视频平台</p>
-    </div>
-    
     <script>
         function processUrl() {
             const input = document.getElementById('videoUrl');
