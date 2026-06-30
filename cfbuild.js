@@ -254,6 +254,22 @@ async function getDoubaoVideoUrl(url) {
 function isDoubaoUrl(inputUrl) {
   return inputUrl.includes("doubao.com");
 }
+function errorResponse(error, dataMode) {
+  const message = error instanceof Error ? error.message : String(error);
+  const help = message.includes("\u672A\u80FD\u4ECE\u8C46\u5305\u94FE\u63A5\u4E2D\u89E3\u6790\u5230\u89C6\u9891 ID") ? "\u8FD9\u4E2A\u8C46\u5305 thread \u91CC\u6CA1\u6709\u516C\u5F00\u53EF\u89E3\u6790\u7684\u89C6\u9891 ID\uFF0C\u53EF\u80FD\u662F\u56FE\u7247/\u6587\u5B57\u5BF9\u8BDD\u3001\u5185\u5BB9\u672A\u516C\u5F00\uFF0C\u6216\u9700\u8981\u767B\u5F55\u540E\u624D\u80FD\u770B\u5230\u89C6\u9891\u3002\u8BF7\u4F7F\u7528\u5305\u542B video_id \u7684\u8C46\u5305\u89C6\u9891\u5206\u4EAB\u94FE\u63A5\uFF0C\u6216\u786E\u8BA4 thread \u4E2D\u6709\u516C\u5F00\u89C6\u9891\u3002" : "\u89E3\u6790\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u94FE\u63A5\u662F\u5426\u6709\u6548\u3002";
+  const status = 400;
+  if (dataMode) {
+    return new Response(JSON.stringify({ error: message, help }), {
+      status,
+      headers: { "Content-Type": "application/json; charset=utf-8" }
+    });
+  }
+  return new Response(`${message}
+${help}`, {
+    status,
+    headers: { "Content-Type": "text/plain; charset=utf-8" }
+  });
+}
 
 // Users/pwhcoder/WebstormProjects/douyinVd/serve.ts
 var handler = async (req) => {
@@ -262,12 +278,18 @@ var handler = async (req) => {
   if (url.searchParams.has("url")) {
     const inputUrl = url.searchParams.get("url");
     console.log("inputUrl:", inputUrl);
-    if (url.searchParams.has("data")) {
-      const videoInfo = isDoubaoUrl(inputUrl) ? await getDoubaoVideoInfo(inputUrl) : await getVideoInfo(inputUrl);
-      return new Response(JSON.stringify(videoInfo));
+    const dataMode = url.searchParams.has("data");
+    try {
+      if (dataMode) {
+        const videoInfo = isDoubaoUrl(inputUrl) ? await getDoubaoVideoInfo(inputUrl) : await getVideoInfo(inputUrl);
+        return new Response(JSON.stringify(videoInfo));
+      }
+      const videoUrl = isDoubaoUrl(inputUrl) ? await getDoubaoVideoUrl(inputUrl) : await getVideoUrl(inputUrl);
+      return new Response(videoUrl);
+    } catch (error) {
+      console.error(error);
+      return errorResponse(error, dataMode);
     }
-    const videoUrl = isDoubaoUrl(inputUrl) ? await getDoubaoVideoUrl(inputUrl) : await getVideoUrl(inputUrl);
-    return new Response(videoUrl);
   } else {
     return new Response("\u8BF7\u63D0\u4F9Burl\u53C2\u6570");
   }
