@@ -122,6 +122,139 @@ async function getVideoUrl(url) {
   return downloadUrl;
 }
 
+// Users/pwhcoder/WebstormProjects/douyinVd/doubao.ts
+var DOUBAO_PLAY_INFO_URL = "https://www.doubao.com/samantha/media/get_play_info";
+var DOUBAO_PLAY_INFO_PARAMS = {
+  version_code: "20800",
+  language: "zh-CN",
+  device_platform: "web",
+  aid: "497858",
+  real_aid: "497858",
+  pkg_type: "release_version",
+  device_id: "",
+  pc_version: "2.51.7",
+  region: "",
+  sys_region: "",
+  samantha_web: "1",
+  "use-olympus-account": "1",
+  web_tab_id: ""
+};
+function extractFirstUrl(input) {
+  const match = input.match(/https?:\/\/[^\s]+/);
+  return match ? match[0] : input;
+}
+function unique(values) {
+  return [...new Set(values.filter(Boolean))];
+}
+function getQueryVideoIds(inputUrl) {
+  try {
+    const parsedUrl = new URL(inputUrl);
+    return unique(parsedUrl.searchParams.getAll("video_id"));
+  } catch {
+    return [];
+  }
+}
+async function doubaoDoGet(url) {
+  const headers = new Headers();
+  headers.set(
+    "User-Agent",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+  );
+  headers.set("Accept-Language", "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,en-GB;q=0.6");
+  return await fetch(url, { method: "GET", headers });
+}
+async function getDoubaoVideoIds(inputUrl) {
+  const url = extractFirstUrl(inputUrl);
+  const queryVideoIds = getQueryVideoIds(url);
+  if (queryVideoIds.length > 0) {
+    return queryVideoIds;
+  }
+  if (!url.includes("doubao.com/thread/")) {
+    throw new Error("\u94FE\u63A5\u4E2D\u7F3A\u5C11 video_id \u53C2\u6570\uFF0C\u8BF7\u4F7F\u7528\u8C46\u5305\u89C6\u9891\u5206\u4EAB\u94FE\u63A5\u6216\u8C46\u5305 thread \u94FE\u63A5");
+  }
+  const resp = await doubaoDoGet(url);
+  if (!resp.ok) {
+    throw new Error(`\u8C46\u5305\u9875\u9762\u8BF7\u6C42\u5931\u8D25: ${resp.status}`);
+  }
+  const body = await resp.text();
+  const patterns = [
+    /{\\&quot;vid\\&quot;:\\&quot;(.*?)\\&quot/g,
+    /"vid"\s*:\s*"([^"]+)"/g,
+    /\\"vid\\"\s*:\s*\\"([^"\\]+)\\"/g
+  ];
+  const ids = [];
+  for (const pattern2 of patterns) {
+    let match;
+    while ((match = pattern2.exec(body)) !== null) {
+      ids.push(match[1]);
+    }
+  }
+  const videoIds = unique(ids);
+  if (videoIds.length === 0) {
+    throw new Error("\u672A\u80FD\u4ECE\u8C46\u5305\u94FE\u63A5\u4E2D\u89E3\u6790\u5230\u89C6\u9891 ID");
+  }
+  return videoIds;
+}
+async function getDoubaoPlayInfo(videoId) {
+  const apiUrl = new URL(DOUBAO_PLAY_INFO_URL);
+  for (const [key, value] of Object.entries(DOUBAO_PLAY_INFO_PARAMS)) {
+    apiUrl.searchParams.set(key, value);
+  }
+  const headers = new Headers();
+  headers.set(
+    "User-Agent",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 NetType/WIFI MicroMessenger/7.0.20.1781(0x6700143B) WindowsWechat(0x63090c33) XWEB/14315 Flue"
+  );
+  headers.set("Origin", "https://www.doubao.com");
+  headers.set("Content-Type", "application/json");
+  const resp = await fetch(apiUrl.toString(), {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ key: videoId })
+  });
+  if (!resp.ok) {
+    throw new Error(`\u8C46\u5305\u64AD\u653E\u4FE1\u606F\u8BF7\u6C42\u5931\u8D25: ${resp.status}`);
+  }
+  const result = await resp.json();
+  const originalMediaInfo = result.data?.original_media_info;
+  const mainUrl = originalMediaInfo?.main_url;
+  if (!mainUrl) {
+    throw new Error("\u8C46\u5305 API \u8FD4\u56DE\u6570\u636E\u683C\u5F0F\u5F02\u5E38\uFF0C\u53EF\u80FD\u94FE\u63A5\u5DF2\u5931\u6548");
+  }
+  const meta = originalMediaInfo.meta ?? {};
+  return {
+    width: meta.width ?? null,
+    height: meta.height ?? null,
+    definition: meta.definition ?? null,
+    duration: meta.duration ?? null,
+    codec_type: meta.codec_type ?? null,
+    poster_url: result.data?.poster_url ?? null,
+    url: mainUrl
+  };
+}
+async function getDoubaoVideoInfo(url) {
+  const videoIds = await getDoubaoVideoIds(url);
+  const videoList = await Promise.all(videoIds.map((videoId) => getDoubaoPlayInfo(videoId)));
+  const videoUrlList = videoList.map((video) => video.url);
+  return {
+    platform: "doubao",
+    type: "video",
+    video_url: videoUrlList[0] ?? null,
+    video_url_list: videoUrlList,
+    video_list: videoList
+  };
+}
+async function getDoubaoVideoUrl(url) {
+  const videoInfo = await getDoubaoVideoInfo(url);
+  if (!videoInfo.video_url) {
+    throw new Error("\u8C46\u5305\u89C6\u9891\u76F4\u94FE\u89E3\u6790\u5931\u8D25");
+  }
+  return videoInfo.video_url;
+}
+function isDoubaoUrl(inputUrl) {
+  return inputUrl.includes("doubao.com");
+}
+
 // Users/pwhcoder/WebstormProjects/douyinVd/serve.ts
 var handler = async (req) => {
   console.log("Method:", req.method);
@@ -130,10 +263,10 @@ var handler = async (req) => {
     const inputUrl = url.searchParams.get("url");
     console.log("inputUrl:", inputUrl);
     if (url.searchParams.has("data")) {
-      const videoInfo = await getVideoInfo(inputUrl);
+      const videoInfo = isDoubaoUrl(inputUrl) ? await getDoubaoVideoInfo(inputUrl) : await getVideoInfo(inputUrl);
       return new Response(JSON.stringify(videoInfo));
     }
-    const videoUrl = await getVideoUrl(inputUrl);
+    const videoUrl = isDoubaoUrl(inputUrl) ? await getDoubaoVideoUrl(inputUrl) : await getVideoUrl(inputUrl);
     return new Response(videoUrl);
   } else {
     return new Response("\u8BF7\u63D0\u4F9Burl\u53C2\u6570");
