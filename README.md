@@ -1,14 +1,14 @@
-# 抖音无水印视频(图文)下载服务
+# 抖音/豆包无水印视频(图文)下载服务
 
 ## 📌 功能说明
 
-通过提供的抖音视频或者图文链接，获取对应的无水印视频(图片)链接。
+通过提供的抖音视频、图文链接或豆包视频分享链接，获取对应的无水印视频(图片)链接。
 
 ### 🔧 请求方式
 - **方法**：GET
 - **地址**：`https://yourdomain?url=https://v.douyin.com/xxxx/`
 - **参数说明**：
-    - `url`: 抖音视频分享链接
+    - `url`: 抖音视频/图文分享链接，或豆包视频分享链接
     - `data`: 启用json数据返回，请求链接如下 https://yourdomain?data&url=https://v.douyin.com/xxxx
   
 
@@ -48,6 +48,25 @@ image_url_list: string[] | null;
 }
 ```
 
+豆包链接 `data` 返回结构如下：
+```ts
+interface DoubaoVideoInfo {
+  platform: "doubao";
+  type: "video";
+  video_url: string | null;
+  video_url_list: string[];
+  video_list: Array<{
+    width: number | null;
+    height: number | null;
+    definition: string | null;
+    duration: number | null;
+    codec_type: string | null;
+    poster_url: string | null;
+    url: string;
+  }>;
+}
+```
+
 ---
 
 ## 🚀 部署方式
@@ -84,3 +103,6 @@ image_url_list: string[] | null;
 
 [![Star History Chart](https://api.star-history.com/svg?repos=pwh-pwh/douyinVd&type=Date)](https://star-history.com/#pwh-pwh/douyinVd&Date)
 
+## 参考
+
+- 豆包解析逻辑参考 [ihmily/doubao-nomark](https://github.com/ihmily/doubao-nomark)，许可证声明见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)。

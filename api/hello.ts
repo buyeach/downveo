@@ -184,7 +184,7 @@ export default async function handler(request: Request): Promise<Response> {
 
     <div class="instructions">
 
-        <p>将视频链接粘贴到下方输入框中，然后点击"解析下载"</p>
+        <p>将抖音或豆包视频链接粘贴到下方输入框中，然后点击"解析下载"</p>
 
     </div>
 
@@ -198,7 +198,7 @@ export default async function handler(request: Request): Promise<Response> {
 
                class="url-input" 
 
-               placeholder="在此粘贴您的视频链接"
+               placeholder="在此粘贴抖音或豆包视频链接"
 
                autofocus>
 
@@ -226,7 +226,7 @@ export default async function handler(request: Request): Promise<Response> {
 
         <h3>📋 使用示例：</h3>
 
-        <p>1. 复制抖音视频链接：<code>https://v.douyin.com/n_r5jmCP31I</code></p>
+        <p>1. 复制抖音或豆包视频链接：<code>https://v.douyin.com/n_r5jmCP31I</code></p>
 
         <p>2. 粘贴到上方输入框中</p>
 
@@ -365,4 +365,3 @@ export default async function handler(request: Request): Promise<Response> {
     });
 
 }
-
