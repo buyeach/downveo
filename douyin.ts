@@ -466,42 +466,32 @@ function pickBestOfficialVideo(video: OfficialVideo | undefined): OfficialVideoC
 }
 
 async function resolveWithOfficialApi(awemeId: string): Promise<DouyinVideoInfo> {
-  const [registerResponse, homeResponse] = await Promise.all([
-    fetchWithTimeout(TTVID_REGISTER_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": DOUYIN_USER_AGENT,
-      },
-      body: JSON.stringify({
-        region: "cn",
-        aid: 1768,
-        needFid: false,
-        service: "www.ixigua.com",
-        migrate_info: { ticket: "", source: "node" },
-        cbUrlProtocol: "https",
-        union: true,
-      }),
+  const registerResponse = await fetchWithTimeout(TTVID_REGISTER_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "User-Agent": DOUYIN_USER_AGENT,
+    },
+    body: JSON.stringify({
+      region: "cn",
+      aid: 1768,
+      needFid: false,
+      service: "www.ixigua.com",
+      migrate_info: { ticket: "", source: "node" },
+      cbUrlProtocol: "https",
+      union: true,
     }),
-    fetchWithTimeout(DOUYIN_HOME_URL, {
-      headers: {
-        "Accept-Language": "zh-CN,zh;q=0.9",
-        "User-Agent": DOUYIN_USER_AGENT,
-      },
-    }),
-  ]);
+  });
 
-  if (!registerResponse.ok || !homeResponse.ok) {
+  if (!registerResponse.ok) {
     throw new Error("抖音游客会话初始化失败");
   }
   const ttwid = getResponseCookie(registerResponse, "ttwid");
-  const nonce = getResponseCookie(homeResponse, "__ac_nonce");
-  if (!ttwid || !nonce) {
-    throw new Error("抖音游客会话未返回必要 Cookie");
+  if (!ttwid) {
+    throw new Error("抖音游客会话未返回 ttwid Cookie");
   }
   try {
     await registerResponse.body?.cancel();
-    await homeResponse.body?.cancel();
   } catch {
     // 部分边缘运行时不支持主动取消响应体，不影响后续请求。
   }
@@ -548,7 +538,7 @@ async function resolveWithOfficialApi(awemeId: string): Promise<DouyinVideoInfo>
   const response = await fetchWithTimeout(`${DOUYIN_DETAIL_URL}?${params.toString()}`, {
     headers: {
       "Accept": "application/json",
-      "Cookie": `${ttwid}; ${nonce}`,
+      "Cookie": ttwid,
       "Referer": DOUYIN_HOME_URL,
       "User-Agent": DOUYIN_USER_AGENT,
     },
