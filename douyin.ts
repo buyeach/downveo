@@ -249,6 +249,12 @@ function getResponseCookie(response: Response, name: string): string {
   return "";
 }
 
+function generateUifid(): string {
+  const bytes = new Uint8Array(80);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((value) => value.toString(16).padStart(2, "0")).join("");
+}
+
 function rotateLeft(value: number, bits: number): number {
   const shift = bits % 32;
   return ((value << shift) | (value >>> (32 - shift))) >>> 0;
@@ -516,10 +522,11 @@ async function resolveWithOfficialApi(awemeId: string): Promise<DouyinVideoInfo>
     },
     redirect: "follow",
   });
-  const uifidCookie = getResponseCookie(bootstrapResponse, "UIFID_TEMP");
-  if (!uifidCookie) {
-    throw new Error("抖音游客会话未返回 UIFID_TEMP Cookie");
-  }
+  // 抖音不会稳定地向数据中心出口（例如 Vercel）下发 UIFID_TEMP。
+  // 当前 Argus 网关只要求 uifid 参数、请求头和 Cookie 三者同值；没有平台
+  // Cookie 时生成一次性访客标识，避免把部署环境误判为无效链接。
+  const uifidCookie = getResponseCookie(bootstrapResponse, "UIFID_TEMP") ||
+    `UIFID_TEMP=${generateUifid()}`;
   const uifid = uifidCookie.slice("UIFID_TEMP=".length);
   const cookie = [
     getResponseCookie(bootstrapResponse, "ttwid") || ttwid,
