@@ -412,9 +412,18 @@ function generateABogus(query: string): string {
 
 function firstAllowedVideoUrl(values: unknown): string {
   if (!Array.isArray(values)) return "";
-  return values.find((value): value is string =>
+  const urls = values.filter((value): value is string =>
     typeof value === "string" && isAllowedVideoUrl(value)
-  ) ?? "";
+  );
+
+  // douyinvod CDN 直链现在会校验 Referer；用户把链接粘贴到新标签页时可能 403。
+  // 同一 url_list 中的 www.douyin.com 播放入口会在浏览器中带正确 Referer 跳转到
+  // 完全相同的官方 MP4，因此优先返回它，兼顾直链复制和 Range 下载。
+  return urls.find((value) => {
+    const url = new URL(value);
+    return url.hostname === "www.douyin.com" &&
+      /^\/aweme\/v1\/play\/$/.test(url.pathname);
+  }) ?? urls[0] ?? "";
 }
 
 function firstAllowedImageUrl(values: unknown): string {
@@ -496,6 +505,34 @@ async function resolveWithOfficialApi(awemeId: string): Promise<DouyinVideoInfo>
     // 部分边缘运行时不支持主动取消响应体，不影响后续请求。
   }
 
+  // 抖音的 Argus 网关现在要求请求同时携带平台签发的 UIFID。
+  // 首页 HEAD 响应虽然是 404，但会下发 UIFID_TEMP、ttwid 等游客身份 Cookie；
+  // 普通 GET 只下发 __ac_nonce，无法通过详情接口的前置校验。
+  const bootstrapResponse = await fetchWithTimeout(DOUYIN_HOME_URL, {
+    method: "HEAD",
+    headers: {
+      "Accept-Language": "zh-CN,zh;q=0.9",
+      "User-Agent": DOUYIN_USER_AGENT,
+    },
+    redirect: "follow",
+  });
+  const uifidCookie = getResponseCookie(bootstrapResponse, "UIFID_TEMP");
+  if (!uifidCookie) {
+    throw new Error("抖音游客会话未返回 UIFID_TEMP Cookie");
+  }
+  const uifid = uifidCookie.slice("UIFID_TEMP=".length);
+  const cookie = [
+    getResponseCookie(bootstrapResponse, "ttwid") || ttwid,
+    uifidCookie,
+    getResponseCookie(bootstrapResponse, "web_sign_token"),
+    getResponseCookie(bootstrapResponse, "enter_pc_once"),
+  ].filter(Boolean).join("; ");
+  try {
+    await bootstrapResponse.body?.cancel();
+  } catch {
+    // 同上：响应体是否可主动取消不影响 Cookie 使用。
+  }
+
   const params = new URLSearchParams({
     device_platform: "webapp",
     aid: "6383",
@@ -531,6 +568,7 @@ async function resolveWithOfficialApi(awemeId: string): Promise<DouyinVideoInfo>
     whale_cut_token: "",
     update_version_code: "170400",
     aweme_id: awemeId,
+    uifid,
     msToken: "",
   });
   params.set("a_bogus", generateABogus(params.toString()));
@@ -538,13 +576,19 @@ async function resolveWithOfficialApi(awemeId: string): Promise<DouyinVideoInfo>
   const response = await fetchWithTimeout(`${DOUYIN_DETAIL_URL}?${params.toString()}`, {
     headers: {
       "Accept": "application/json",
-      "Cookie": ttwid,
+      "Cookie": cookie,
       "Referer": DOUYIN_HOME_URL,
       "User-Agent": DOUYIN_USER_AGENT,
+      "uifid": uifid,
+      "x-tt-argus": "1",
     },
   });
   if (!response.ok) {
-    throw new Error(`抖音官方详情请求失败: ${response.status}`);
+    const detail = await response.text().catch(() => "");
+    const reason = detail.trim().slice(0, 160);
+    throw new Error(
+      `抖音官方详情请求失败: ${response.status}${reason ? ` (${reason})` : ""}`,
+    );
   }
 
   const payload = await response.json() as OfficialDetailPayload;
